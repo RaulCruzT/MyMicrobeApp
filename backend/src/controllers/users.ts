@@ -2,6 +2,8 @@ import { RequestHandler } from 'express';
 import createHttpError from 'http-errors';
 import { UserModel } from '../models';
 import bcrypt from "bcrypt";
+import mongoose from 'mongoose';
+import { assertIsDefined } from '../utils/assertIsDefined';
 
 export const getAuthenticatedUser: RequestHandler = async (req, res, next) => {
 
@@ -106,4 +108,70 @@ export const logOut: RequestHandler = (req, res, next) => {
             res.sendStatus(200);
         }
     })
+}
+
+interface UpdateUserParams {
+    userId: string;
+}
+
+interface UpdateUserBody {
+    firstName?: string;
+    lastName?: string;
+    password?: string;
+    photo?: string;
+}
+
+export const updateUser: RequestHandler<UpdateUserParams, unknown, UpdateUserBody, unknown> = async (req, res, next) => {
+    const userId = req.params.userId;
+
+    const {
+        firstName,
+        lastName,
+        photo
+    } = req.body;
+
+    const passwordRaw = req.body.password;
+
+    const authenticatedUserId = req.session.userId;
+
+    try {
+        assertIsDefined(authenticatedUserId);
+
+        if (!mongoose.isValidObjectId(userId)) {
+            throw createHttpError(400, "Invalid User Id");
+        }
+
+        const user = await UserModel.findById(userId).exec();
+
+        if (!user) {
+            throw createHttpError(404, "User not found");
+        }
+
+        if (!user._id.equals(authenticatedUserId)) {
+            throw createHttpError(401, "You cannot update this user");
+        }
+
+        if (firstName) {
+            user.firstName = firstName;
+        }
+
+        if (lastName) {
+            user.lastName = lastName;
+        }
+
+        if (passwordRaw) {
+            const passwordHashed = await bcrypt.hash(passwordRaw, 10);
+            user.password = passwordHashed;
+        }
+
+        if (photo) {
+            user.photo = photo;
+        }
+
+        const updatedUser = await user.save();
+        
+        res.status(200).json(updatedUser);
+    } catch (error) {
+        next(error);
+    }
 }
