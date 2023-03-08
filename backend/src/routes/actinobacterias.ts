@@ -7,6 +7,8 @@ router.get("/", ActinobacteriasController.getActinobacterias);
 
 router.get("/:actinobacteriaId", ActinobacteriasController.getActinobacteria);
 
+router.get("All", ActinobacteriasController.getAllActinobacterias);
+
 router.post("/", ActinobacteriasController.createActinobacteria);
 
 router.patch("/:actinobacteriaId", ActinobacteriasController.updateActinobacteria);

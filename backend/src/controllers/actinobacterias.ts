@@ -2,10 +2,15 @@ import { RequestHandler } from "express";
 import { ActinobacteriaModel } from "../models";
 import createHttpError from 'http-errors';
 import mongoose from "mongoose";
+import { assertIsDefined } from "../utils/assertIsDefined";
 
 export const getActinobacterias: RequestHandler =  async (req, res, next) => {
+    const authenticatedUserId = req.session.userId;
+
     try {
-        const actinobacterias = await ActinobacteriaModel.find().exec();
+        assertIsDefined(authenticatedUserId);
+
+        const actinobacterias = await ActinobacteriaModel.find({userId: authenticatedUserId}).exec();
         res.status(200).json(actinobacterias);
     } catch (error) {
         next(error);
@@ -14,8 +19,11 @@ export const getActinobacterias: RequestHandler =  async (req, res, next) => {
 
 export const getActinobacteria: RequestHandler =  async (req, res, next) => {
     const actinobacteriaId = req.params.actinobacteriaId;
+    const authenticatedUserId = req.session.userId;
 
     try {
+        assertIsDefined(authenticatedUserId);
+
         if (!mongoose.isValidObjectId(actinobacteriaId)) {
             throw createHttpError(400, "Invalid Actinobacteria Id");
         }
@@ -26,7 +34,23 @@ export const getActinobacteria: RequestHandler =  async (req, res, next) => {
             throw createHttpError(404, "Actinobacteria not found");
         }
 
+        if (!actinobacteria.userId.equals(authenticatedUserId)) {
+            throw createHttpError(401, "You cannot access this actinobacteria");
+        }
+
         res.status(200).json(actinobacteria);
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const getAllActinobacterias: RequestHandler = async (req, res , next) => {
+    const authenticatedUserId = req.session.userId;
+
+    try {
+        assertIsDefined(authenticatedUserId);
+        const actinobacterias = await ActinobacteriaModel.find().exec();
+        res.status(200).json(actinobacterias);
     } catch (error) {
         next(error);
     }
@@ -43,12 +67,17 @@ export const createActinobacteria: RequestHandler<unknown, unknown, CreateActino
         designation
     } = req.body;
 
+    const authenticatedUserId = req.session.userId;
+
     try {
+        assertIsDefined(authenticatedUserId);
+
         if (!scientificName || !designation) {
             throw createHttpError(400, "Actinobacteria must have scientific name and designation");
         }
 
         const newActinobacteria = await ActinobacteriaModel.create({
+            userId: authenticatedUserId,
             scientificName,
             designation
         });
@@ -76,7 +105,12 @@ export const updateActinobacteria: RequestHandler<UpdateActinobacteriaParams, un
         designation
     } = req.body;
 
+    const authenticatedUserId = req.session.userId;
+
+
     try {
+        assertIsDefined(authenticatedUserId);
+
         if (!mongoose.isValidObjectId(actinobacteriaId)) {
             throw createHttpError(400, "Invalid Actinobacteria Id");
         }
@@ -89,6 +123,10 @@ export const updateActinobacteria: RequestHandler<UpdateActinobacteriaParams, un
 
         if (!actinobacteria) {
             throw createHttpError(404, "Actinobacteria not found");
+        }
+
+        if (!actinobacteria.userId.equals(authenticatedUserId)) {
+            throw createHttpError(401, "You cannot access this actinobacteria");
         }
 
         actinobacteria.scientificName = scientificName;
@@ -104,17 +142,26 @@ export const updateActinobacteria: RequestHandler<UpdateActinobacteriaParams, un
 
 export const deleteActinobacteria: RequestHandler = async (req, res, next) => {
     const actinobacteriaId = req.params.actinobacteriaId;
+    const authenticatedUserId = req.session.userId;
 
     try {
+        assertIsDefined(authenticatedUserId);
+
         if (!mongoose.isValidObjectId(actinobacteriaId)) {
             throw createHttpError(400, "Invalid Actinobacteria Id");
         }
 
-        const actinobacteria = await ActinobacteriaModel.findByIdAndRemove(actinobacteriaId).exec();
+        const actinobacteria = await ActinobacteriaModel.findById(actinobacteriaId).exec();
 
         if (!actinobacteria) {
             throw createHttpError(404, "Actinobacteria not found");
         }
+
+        if (!actinobacteria.userId.equals(authenticatedUserId)) {
+            throw createHttpError(401, "You cannot access this actinobacteria");
+        }
+
+        await ActinobacteriaModel.deleteOne({_id: actinobacteriaId});
 
         res.sendStatus(204);
     } catch (error) {

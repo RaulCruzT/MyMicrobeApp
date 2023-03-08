@@ -4,15 +4,9 @@ import { UserModel } from '../models';
 import bcrypt from "bcrypt";
 
 export const getAuthenticatedUser: RequestHandler = async (req, res, next) => {
-    const authenticatedUserId = req.session.userId;
 
     try {
-        if (!authenticatedUserId) {
-            throw createHttpError(401, "User not authenticated");
-        }
-
-        const user = await UserModel.findById(authenticatedUserId).select("+email").exec();
-
+        const user = await UserModel.findById(req.session.userId).select("+email").exec();
         res.status(200).json(user);
     } catch (error) {
         next(error);
@@ -84,6 +78,10 @@ export const logIn: RequestHandler<unknown, unknown, LogInBody, unknown> = async
 
         if (!user) {
             throw createHttpError(401, "Invalid credentials");
+        }
+
+        if (!user.verified) {
+            throw createHttpError(401, "User not verified");
         }
 
         const passwordMatch = await bcrypt.compare(password, user.password);
