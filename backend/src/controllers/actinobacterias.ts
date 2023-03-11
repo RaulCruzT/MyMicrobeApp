@@ -2,7 +2,7 @@ import { RequestHandler } from "express";
 import { ActinobacteriaModel } from "../models";
 import createHttpError from 'http-errors';
 import mongoose from "mongoose";
-import { assertIsDefined } from "../utils/assertIsDefined";
+import { assertIsDefined } from "../utils";
 
 export const getActinobacterias: RequestHandler =  async (req, res, next) => {
     const authenticatedUserId = req.session.userId;

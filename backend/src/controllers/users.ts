@@ -1,9 +1,11 @@
 import { RequestHandler } from 'express';
 import createHttpError from 'http-errors';
-import { UserModel } from '../models';
+import { UserModel, TokenModel } from '../models';
 import bcrypt from "bcrypt";
 import mongoose from 'mongoose';
-import { assertIsDefined } from '../utils/assertIsDefined';
+import { assertIsDefined, env, sendEmail } from '../utils';
+import { verifyEmail } from '../utils/templates';
+import crypto from 'crypto';
 
 export const getAuthenticatedUser: RequestHandler = async (req, res, next) => {
 
@@ -51,6 +53,17 @@ export const signUp: RequestHandler<unknown, unknown, SignUpBody, unknown> = asy
             email,
             password: passwordHashed
         });
+
+        const newToken = await TokenModel.create({
+            userId: newUser._id,
+            token: crypto.randomBytes(32).toString("hex"),
+        });
+
+        const verificationURL = `${env.BASE_URL}/user/verify/${newUser._id}/${newToken.token}`;
+
+        const message = verifyEmail(verificationURL);
+
+        await sendEmail(email, "Verify your email", message);
 
         req.session.userId = newUser._id;
 
