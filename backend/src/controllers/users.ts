@@ -188,3 +188,36 @@ export const updateUser: RequestHandler<UpdateUserParams, unknown, UpdateUserBod
         next(error);
     }
 }
+
+export const verifyAccount: RequestHandler = async (req, res, next) => {
+    const {
+        userId,
+        token
+    } = req.params;
+
+    try {
+        const user = await UserModel.findById(userId);
+
+        if (!user) {
+            throw createHttpError(404, "User not found");
+        }
+
+        const Token = await TokenModel.findOne({
+            userId,
+            token
+        });
+
+        if (!Token) {
+            throw createHttpError(404, "Token not found");
+        }
+
+        user.verified = true;
+        await user.save();
+
+        await TokenModel.deleteOne({userId, token});
+
+        res.sendStatus(200);
+    } catch (error) {
+        next(error);
+    }
+}
